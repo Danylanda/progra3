@@ -1,0 +1,147 @@
+<?php
+//esto incluye la librería
+include_once "../somosioticos/somosioticos_dialogflow.php";
+credenciales('coronabot','juegoscompras123');
+debug();
+
+// me conecto a db
+$mysqli = mysqli_connect("localhost", "juegoscompras_jb", "juegoscompras123", "juegoscompras_jb");
+//
+if (!$mysqli) {
+	echo "Error: No se pudo conectar a MySQL." . PHP_EOL;
+	die();
+}
+
+
+//si el intent recibido es consultar_precio...
+if (intent_recibido("consultar_precio")) {
+  $p_barbijo = consulta_precio('barbijos');
+	  $p_guantes = consulta_precio('guantes');
+  $p_alcohol = consulta_precio('alcohol');
+  enviar_texto("Los barbijos cuestan $p_barbijo los guantes cuestan $p_guantes y el alcohol cuesta $p_alcohol");
+}
+
+//si el intent recibido es tomar orden...
+if (intent_recibido("tomar_orden")){
+  $cantidad1 = obtener_variables()['cantidad1'];
+  $barbijo = obtener_variables()['barbijo'];
+	$disponibilidad1 = 0;
+	$precio1 = 0;
+	$subtotal1 = 0;
+	if ($cantidad1 > 0){
+		$precio1 = consulta_precio($barbijo);
+		$disponibilidad1 = consulta_stock($barbijo);
+		$subtotal1 = $cantidad1 * $precio1;
+		if($cantidad1 > $disponibilidad1){
+			enviar_texto("$disponibiliad1 Lo siento, no tenemos suficientes  barbijos $barbijo en este momento, si deseas reformular el pedido simplemente di 'quiero ordenar' la cantidad que actualmente nos quedan es de ".$disponibilidad1." unidades");
+			return;
+		}
+	}
+
+  $cantidad2 = obtener_variables()['cantidad2'];
+  $guantes = obtener_variables()['guantes'];
+	$disponibilidad2 = 0;
+	$precio2 = 0;
+	$subtotal2 = 0;
+	if ($cantidad2 > 0){
+		$precio2 = consulta_precio($guantes);
+		$disponibilidad2 = consulta_stock($guantes);
+		$subtotal2 = $cantidad2 * $precio2;
+		if($cantidad2 > $disponibilidad2){
+			enviar_texto("Lo siento, no tenemos suficientes  Barbijos $guantes en este momento, si deseas reformular el pedido simplemente di 'quiero ordenar' la cantidad que actualmente nos quedan es de $disponibilidad2 unidades");
+			return;
+		}
+	}
+
+
+  $cantidad3 = obtener_variables()['cantidad3'];
+  $alcohol_en_gel = obtener_variables()['alcohol_en_gel'];
+	$disponibilidad3 = 0;
+	$precio3 = 0;
+	$subtotal3 = 0;
+	if ($cantidad3 > 0){
+		$precio3 = consulta_precio($alcohol_en_gel);
+		$disponibilidad3 = consulta_stock($alcohol_en_gel);
+		$subtotal3 = $cantidad3 * $precio3;
+		if($cantidad3 > $disponibilidad3){
+			enviar_texto("Lo siento, no tenemos suficientes  Guantes $alcohol_en_gel en este momento, si deseas reformular el pedido simplemente di 'quiero ordenar' la cantidad que actualmente nos quedan es de $disponibilidad3 unidades");
+			return;
+		}
+	}
+
+	$total = $subtotal1 + $subtotal2 + $subtotal3;
+  enviar_texto("Usted encargó: $cantidad1 $barbijo, $cantidad2 $guantes, $cantidad3 $alcohol_en_gel  y el total es de $ $total por favor dígame si desea confirmar este pedido");
+
+}
+
+//si se confirma la orden
+if (intent_recibido("orden_confirmada")) {
+  $nombre = obtener_variables()['nombre'];
+	$domicilio = obtener_variables()['domicilio'];
+	$telefono = obtener_variables()['telefono'];
+	$barbijo = obtener_variables()['barbijo'];
+	$cantidad1 = obtener_variables()['cantidad1'];
+	$subtotal1 = 0;
+	if ($cantidad1>0){
+		$subtotal1 = $cantidad1 * consulta_precio($barbijo);
+		descuenta_stock($cantidad1,$barbijo);
+	}
+
+	$guantes = obtener_variables()['guantes'];
+	$cantidad2 = obtener_variables()['cantidad2'];
+	$subtotal2 = 0;
+	if ($cantidad2>0){
+		$subtotal2 = $cantidad2 * consulta_precio($guantes);
+		descuenta_stock($cantidad2,$guantes);
+	}
+
+	$alcohol_en_gel = obtener_variables()['alcohol_en_gel'];
+	$cantidad3 = obtener_variables()['cantidad3'];
+	$subtotal3 = 0;
+	if ($cantidad3>0){
+		$subtotal3 = $cantidad3 * consulta_precio($alcohol_en_gel);
+		descuenta_stock($cantidad3,$alcohol_en_gel);
+	}
+
+	//enviamos mail,
+	$total = $subtotal1 + $subtotal2 + $subtotal3;
+//	$mensaje = "Nueva orden para $nombre enviar: \n\n\n $sabor1 $cantidad1 \n\n $sabor2 $cantidad2 \n\n $sabor3 $cantidad3 \n\n enviar a: $domicilio \n\n Total a cobrar: $total" ;
+	//mail('marco123@gmail.com', 'Nueva Orden desde Empabot!', $mensaje);
+
+	$cantidad_total = $cantidad1 + $cantidad2 + $cantidad3;
+
+  enviar_texto("Listo! su orden está en camino, llegará a destino en aproximadamente 15 minutos, su total a pagar es $total. Gracias!");
+}
+
+//***************************
+//**** FUNCIONES ************
+//***************************
+
+function consulta_stock($Ofre){
+  global $mysqli;
+  $resultado = $mysqli->query("SELECT $Ofre FROM `stock` WHERE 1");
+  $stock = mysqli_fetch_assoc($resultado);
+  $cantidad = $stock[$Ofre];
+  return $cantidad;
+}
+
+function consulta_precio($Ofre){
+  global $mysqli;
+  $resultado = $mysqli->query("SELECT $Ofre FROM `precios` WHERE 1");
+  $precios = mysqli_fetch_assoc($resultado);
+  $precio = $precios[$Ofre];
+  return $precio;
+}
+
+function descuenta_stock($cantidad,$Ofre){
+	  global $mysqli;
+		$mysqli->query("UPDATE `stock`  SET $Ofre = $Ofre - $cantidad ");
+}
+
+function agrega_stock($cantidad,$Ofre){
+	  global $mysqli;
+		$mysqli->query("UPDATE `stock`  SET $Ofre = $Ofre + $cantidad ");
+}
+
+
+ ?>
